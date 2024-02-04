@@ -16,4 +16,4 @@ type User struct {
 	Refresh_token *string            `json:"refresh_token" `
 	Created_at    *string            `json:"created_at" `
 	Updated_at    *string            `json:"updated_at" `
-}
+} 
