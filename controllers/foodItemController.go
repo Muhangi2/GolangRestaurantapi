@@ -21,7 +21,6 @@ import (
 
 // defining food collection
 var foodCollection *mongo.Collection = database.OpenCollection(database.Client, "food")
-
 // importing validate package
 var validate = validator.New()
 
@@ -63,7 +62,6 @@ func GetFoods() gin.HandlerFunc {
 		c.JSON(http.StatusOK, allfoods[0])
 	}
 }
-
 func GetFood() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
@@ -95,7 +93,7 @@ func CreateFood() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": validateError.Error()})
 			return
 		}
-		//checking if the menu exists
+		//checking if the food exists
 		err := foodCollection.FindOne(ctx, bson.M{"menu_id": food.Menu_id}).Decode(&menu)
 		defer cancel()
 		if err != nil {
@@ -174,7 +172,6 @@ func DeleteFood() gin.HandlerFunc {
 
 	}
 }
-
 // other functions
 func round(num float64) int {
 	return int(num + math.Copysign(0.5, num))
