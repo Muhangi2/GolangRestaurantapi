@@ -69,7 +69,7 @@ func CreateOrder() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Menu does not exist"})
 			return
 		}
-		
+
 	}
 }
 func UpdateOrder() gin.HandlerFunc {

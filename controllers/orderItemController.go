@@ -29,9 +29,9 @@ func DeleteOrderItem() gin.HandlerFunc{
 		
 	}
 }
-func GetOrderItemsByOrder(id string ) (orderItems []primitive.M,error error){
-	return func(c *gin.Context){
+// func GetOrderItemsByOrder(id string ) (orderItems []primitive.M,error error){
+// 	return func(c *gin.Context){
 		
-	}
+// 	}
 	
-}
+// }

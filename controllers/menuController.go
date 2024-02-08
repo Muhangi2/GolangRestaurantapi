@@ -53,7 +53,7 @@ func GetMenu() gin.HandlerFunc {
 }
 func CreateMenu() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var ctx, cancel = context.WithTimeout((context.Background()), 100*time.Second)
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		var menu models.Menu
 
 		if err := c.BindJSON(&menu); err != nil {
@@ -133,7 +133,7 @@ func UpdateMenu() gin.HandlerFunc {
 			if err != nil {
 				msg := fmt.Sprintf("Menu was not updated")
 				c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
-				defer cancel()
+				
 				return
 
 			}

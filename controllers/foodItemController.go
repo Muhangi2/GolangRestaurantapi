@@ -21,6 +21,7 @@ import (
 
 // defining food collection
 var foodCollection *mongo.Collection = database.OpenCollection(database.Client, "food")
+
 // importing validate package
 var validate = validator.New()
 
@@ -40,7 +41,7 @@ func GetFoods() gin.HandlerFunc {
 		startIndex, err = strconv.Atoi(c.Query("startIndex"))
 
 		matchStage := bson.D{{"$match", bson.D{{}}}}
-		groupStage := bson.D{{"$group", bson.D{{"_id", bson.D{{"_id", "null"}}}, {"total_count", bson.D{{"$sum,1"}}}, {"data", bson.D{{"$push", "$$ROOT"}}}}}}
+		groupStage := bson.D{{"$group", bson.D{{"_id", bson.D{{"_id", "null"}}}, {"total_count", bson.D{{"$sum", 1}}}, {"data", bson.D{{"$push", "$$ROOT"}}}}}}
 		projectStage := bson.D{{
 			"$project", bson.D{
 				{"_id", 0}, {"total_count", 1},
@@ -139,7 +140,7 @@ func UpdateFood() gin.HandlerFunc {
 			updateObj = append(updateObj, bson.E{"food_image", food.Food_image})
 		}
 		if food.Menu_id != nil {
-			err := menuCollection.FindOne(ctx, bson.E{"Menu_id", food.Menu_id}).Decode(&menu)
+			err := menuCollection.FindOne(ctx, bson.E{"Menu_id", food.Menu_id}).Decode(&food)
 			defer cancel()
 			if err != nil {
 				msg := fmt.Sprintf("mesage:menu wasnt found")
@@ -152,6 +153,7 @@ func UpdateFood() gin.HandlerFunc {
 		updateObj = append(updateObj, bson.E{"updated_at", food.UpdatedAt})
 
 		upsert := true
+		Food_id := c.Param("food_id")
 		filter := bson.M{"food_id": Food_id}
 
 		opt := options.UpdateOptions{
@@ -172,6 +174,7 @@ func DeleteFood() gin.HandlerFunc {
 
 	}
 }
+
 // other functions
 func round(num float64) int {
 	return int(num + math.Copysign(0.5, num))
