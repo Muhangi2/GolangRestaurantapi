@@ -120,16 +120,16 @@ func UpdateOrderItem() gin.HandlerFunc {
 
 		var updateObj primitive.D
 		if orderItem.Unit_price != nil {
-			updateObj = append(updateObj, bson.E{"unit_price": *orderItem.Unit_price})
+			updateObj = append(updateObj, bson.E{"unit_price", *orderItem.Unit_price})
 		}
 		if orderItem.Quantity != nil {
-			updateObj = append(updateObj, bson.E{"quantity": *orderItem.Quantity})
+			updateObj = append(updateObj, bson.E{"quantity", *orderItem.Quantity})
 		}
 		if orderItem.Food_id != nil {
-			updateObj = append(updateObj, bson.E{"food_id": *orderItem.Food_id})
+			updateObj = append(updateObj, bson.E{"food_id", *orderItem.Food_id})
 		}
 		orderItem.Updated_at = time.Now()
-		updateObj = append(updateObj, bson.E{"updated_at": orderItem.Updated_at})
+		updateObj = append(updateObj, bson.E{"updated_at", orderItem.Updated_at})
 
 		//finalizing with inserting in the mongoDb
 		upsert := true
@@ -156,4 +156,47 @@ func DeleteOrderItem() gin.HandlerFunc {
 
 func ItemsByOrder(id string) (orderItems []primitive.M, error error) {
 
+}
+func UpdateOrderItem() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
+
+		var orderItem models.OrderItem
+		if err := c.BindJSON(&orderItem); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		orderItemId := c.Param("orderItem_id")
+		filter := bson.M{"order_item_id": orderItemId}
+
+		var updateObj bson.D
+
+		if orderItem.Unit_price != nil {
+			updateObj = append(updateObj, bson.E{"unit_price", *orderItem.Unit_price})
+		}
+		if orderItem.Quantity != nil {
+			updateObj = append(updateObj, bson.E{"quantity", *orderItem.Quantity})
+		}
+		if orderItem.Food_id != nil {
+			updateObj = append(updateObj, bson.E{"food_id", *orderItem.Food_id})
+		}
+		orderItem.Updated_at = time.Now()
+		updateObj = append(updateObj, bson.E{"updated_at", orderItem.Updated_at})
+
+		// Finalizing with inserting in the MongoDB
+		upsert := true
+		opt := options.UpdateOptions{
+			Upsert: &upsert,
+		}
+		result, err := orderCollection.UpdateOne(ctx, filter, bson.D{{"$set", updateObj}}, &opt)
+		if err != nil {
+			msg := fmt.Sprintf("failed to update order item: %s", err.Error())
+			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
+			return
+		}
+
+		c.JSON(http.StatusCreated, result)
+	}
 }

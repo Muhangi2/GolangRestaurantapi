@@ -40,7 +40,7 @@ func GetInvoices() gin.HandlerFunc {
 		if err = result.All(ctx, &allInvoices); err != nil {
 			c.JSON(500, gin.H{"error": "Error while fetching the invoice"})
 		}
-		c.JSON(http.StatusOk, allInvoices)
+		c.JSON(200, allInvoices)
 	}
 
 }
@@ -56,7 +56,6 @@ func GetInvoice() gin.HandlerFunc {
 				"error": "error occured while fetching the food and food doesnt exist",
 			})
 		}
-
 		var invoiceView InvoiceViewFormat
 
 		allOrderItems, err := ItemsByOrder(invoice.Order_id)
@@ -115,7 +114,7 @@ func CreateInvoice() gin.HandlerFunc {
 			return
 		}
 		defer cancel()
-		c.JSON(http.StatusOk, result)
+		c.JSON(200, result)
 	}
 }
 func UpdateInvoice() gin.HandlerFunc {
