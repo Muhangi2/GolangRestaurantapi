@@ -155,48 +155,68 @@ func DeleteOrderItem() gin.HandlerFunc {
 }
 
 func ItemsByOrder(id string) (orderItems []primitive.M, error error) {
+	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+	matchStage := bson.D{{"$match", bson.D{{"order_id", id}}}}
 
-}
-func UpdateOrderItem() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
-		defer cancel()
+	loopUpFoodStage := bson.D{{"$loopup", bson.D{{"from", "food"}, {"localField", "food_id"}, {"foreignField", "food_id"}, {"as", "food"}}}}
+	unwindStage := bson.D{{"$unwind", bson.D{{"path", "$food"}, {"preserveNullAndEmptyArrays", true}}}}
 
-		var orderItem models.OrderItem
-		if err := c.BindJSON(&orderItem); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
+	loopUpOrderStage := bson.D{{"$loopup", bson.D{{"from", "order"}, {"localField", "order_id"}, {"foreignField", "order_id"}, {"as", "order"}}}}
+	unwindOrderStage := bson.D{{"$unwind", bson.D{{"path", "$order"}, {"preserveNullAndEmptyArrays", true}}}}
 
-		orderItemId := c.Param("orderItem_id")
-		filter := bson.M{"order_item_id": orderItemId}
+	loopUpTableStage := bson.D{{"$loopup", bson.D{{"from", "table"}, {"localField", "order.table_id"}, {"foreignField", "table_id"}, {"as", "table"}}}}
+	unwindTableStage := bson.D{{"$unwind", bson.D{{"path", "$table"}, {"preserveNullAndEmptyArrays", true}}}}
 
-		var updateObj bson.D
+	projetStage := bson.D{
+		{"$project",
+			bson.D{
+				{"id", 0},
+				{"amount", "$food.price"},
+				{"total_count", 1},
+				{"food_name", "$food.name"},
+				{"food_image", "$food.food_image"},
+				{"table_number", "$table.table_number"},
+				{"table_id", "$table.table_id"},
+				{"order_id", "$order.order_id"},
+				{"price", "$food.price"},
+				{"quantity", 1},
+			}}}
 
-		if orderItem.Unit_price != nil {
-			updateObj = append(updateObj, bson.E{"unit_price", *orderItem.Unit_price})
-		}
-		if orderItem.Quantity != nil {
-			updateObj = append(updateObj, bson.E{"quantity", *orderItem.Quantity})
-		}
-		if orderItem.Food_id != nil {
-			updateObj = append(updateObj, bson.E{"food_id", *orderItem.Food_id})
-		}
-		orderItem.Updated_at = time.Now()
-		updateObj = append(updateObj, bson.E{"updated_at", orderItem.Updated_at})
+	groupStage := bson.D{
+		{"$group", bson.D{
+			{"order_id", "$order_id"},
+			{"table_id", "$table_id"},
+			{"table_number", "$table_number"},
+			{"payment_due", bson.D{{"$sum", "$amount"}}},
+			{"total_count", bson.D{{"$sum", 1}}},
+			{"order_item", bson.D{{"$push", "$$ROOT"}}},
+		}}}
 
-		// Finalizing with inserting in the MongoDB
-		upsert := true
-		opt := options.UpdateOptions{
-			Upsert: &upsert,
-		}
-		result, err := orderCollection.UpdateOne(ctx, filter, bson.D{{"$set", updateObj}}, &opt)
-		if err != nil {
-			msg := fmt.Sprintf("failed to update order item: %s", err.Error())
-			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
-			return
-		}
-
-		c.JSON(http.StatusCreated, result)
+	projectStage2 := bson.D{{"$project", bson.D{
+		{"id", 0},
+		{"payment_due", 1},
+		{"total_count", 1},
+		{"table_number", "$_id.table_number"},
+		{"order_items", 1},
+	}}}
+	result, err := orderItemCollection.Aggregate(ctx, mongo.Pipeline{
+		matchStage,
+		loopUpFoodStage,
+		unwindStage,
+		loopUpOrderStage,
+		unwindOrderStage,
+		loopUpTableStage,
+		unwindTableStage,
+		projetStage,
+		groupStage,
+		projectStage2,
+	})
+	if err != nil {
+		panic(err)
 	}
+	if err = result.All(ctx, &orderItems); err != nil {
+		panic(err)
+	}
+	defer cancel()
+	return orderItems, err
 }

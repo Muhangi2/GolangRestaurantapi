@@ -17,7 +17,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"gonum.org/v1/gonum/mat"
 )
 
 // defining food collection
@@ -181,6 +180,6 @@ func round(num float64) int {
 	return int(num + math.Copysign(0.5, num))
 }
 func toFixed(num float64, precision int) float64 {
-	output := mat.Pow(10, float64(precision))
+	output := math.Pow(10, float64(precision))
 	return float64(round(num*output)) / output
 }

@@ -62,7 +62,7 @@ func GetInvoice() gin.HandlerFunc {
 		invoiceView.Order_id = invoice.Order_id
 		invoiceView.Payment_due_date = invoice.Payment_due_date
 
-		invoiceView.Payment_method = "null"
+		*invoiceView.Payment_method = "null"
 		if invoice.Payment_method != nil {
 			invoiceView.Payment_method = *&invoice.Payment_method
 		}
@@ -89,7 +89,8 @@ func CreateInvoice() gin.HandlerFunc {
 			return
 		}
 		var orders models.Order
-		err := invoiceCollection.FindOne(ctx, bson.M{}).Decode(&orders)
+		//error ahead
+		err := orderCollection.FindOne(ctx, bson.M{}).Decode(&orders)
 		defer cancel()
 		if err != nil {
 			msg := fmt.Sprintf("order wasnt found")
@@ -138,7 +139,7 @@ func UpdateInvoice() gin.HandlerFunc {
 		}
 
 		invoice.Updated_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
-		updateObj = append(updateObj, bson.E{"updated_at", invoice.UpdatedAt})
+		updateObj = append(updateObj, bson.E{"updated_at", invoice.Updated_at})
 
 		upsert := true
 		filter := bson.M{"invoice_id": invoiceId}
