@@ -77,10 +77,10 @@ func CreateOrderItem() gin.HandlerFunc {
 		orders.Order_Date = time.Now()
 		orders.Table_id = orderitemStructure.Table_id
 		orderItemsTobeCreated := []interface{}{}
-		order_id := OrderItemOrderCreator(order)
+		order_id := OrderItemOrderCreator(orders)
 
 		for _, orderItem := range orderitemStructure.Order_items {
-			orderItem.Order_id = order_id
+			orderItem.Order_id = &order_id
 			validateError := validate.Struct(orderItem)
 			if validateError != nil {
 				c.JSON(400, gin.H{"error": validateError.Error()})
@@ -136,7 +136,7 @@ func UpdateOrderItem() gin.HandlerFunc {
 		opt := options.UpdateOptions{
 			Upsert: &upsert,
 		}
-		result, err := orderCollection.UpdateOne(
+		result, err := orderItemCollection.UpdateOne(
 			ctx, filter, bson.D{{"$set", updateObj}}, &opt,
 		)
 		if err != nil {
@@ -146,11 +146,6 @@ func UpdateOrderItem() gin.HandlerFunc {
 		}
 		defer cancel()
 		c.JSON(201, result)
-	}
-}
-func DeleteOrderItem() gin.HandlerFunc {
-	return func(c *gin.Context) {
-
 	}
 }
 

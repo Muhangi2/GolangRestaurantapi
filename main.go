@@ -2,7 +2,7 @@ package main
 
 import (
 	"golang-Restaurantbooking/database"
-
+	"golang-Restaurantbooking/middleware"
 	"golang-Restaurantbooking/routes"
 	"os"
 
@@ -26,7 +26,7 @@ func main() {
 	routes.MenuRoutes(router)
 	routes.OrderRoutes(router)
 	routes.OrderItemRoutes(router)
-	router.invoiceRouter(router)
+	routes.InvoiceRoutes(router)
 	routes.TableRoutes(router)
 
 	router.Run(":" + port)
