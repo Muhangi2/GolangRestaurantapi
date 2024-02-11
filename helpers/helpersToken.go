@@ -49,7 +49,7 @@ func GenerateAllTokens(email string, firstName string, lastName string, uid stri
 	refreshTokens, err := jwt.NewWithClaims(jwt.SigningMethodES256, refreshClaims).SignedString(SECRET_KEY)
 
 	if err != nil {
-		log.panic(err)
+		log.Fatal(err)
 		return
 	}
 	return token, refreshTokens, err
@@ -92,12 +92,10 @@ func ValidateToken(signedToken string) (claims *SignedDetails, msg string) {
 		return
 	}
 	//the token is expired
-	// Extract the time value from jwt.NumericDate and convert it to Unix time
-	expiresAtUnix := claims.ExpiresAt.Time().Unix()
 
 	// Compare the Unix time with the current local Unix time
-	if expiresAtUnix < time.Now().Unix() {
-		msg = "the token is invalid"
+	if claims.ExpiresAt.Before(time.Now()) {
+		msg = "the token is expired"
 		return
 	}
 

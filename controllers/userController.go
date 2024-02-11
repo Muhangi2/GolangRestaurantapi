@@ -130,7 +130,7 @@ func Signup() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "user created successfully", "user_id": user.User_id})
+		c.JSON(http.StatusOK, gin.H{"message": "user created successfully", "user_id": user.User_id, "result": result})
 	}
 }
 
@@ -188,6 +188,7 @@ func VerifyPassword(userPassword string, providePassword string) (bool, string) 
 	if err != nil {
 		msg = fmt.Sprintf("password is incorrect")
 		check := false
+		return check, msg
 	}
 	return check, msg
 }
