@@ -1,13 +1,12 @@
 package main
 
 import (
-	"golang-Restaurantbooking/database"
-	"golang-Restaurantbooking/middleware"
-	"golang-Restaurantbooking/routes"
-	"os"
-
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
+	"golang-Restaurantbooking/database"
+	"golang-Restaurantbooking/middlewares"
+	"golang-Restaurantbooking/routes"
+	"os"
 )
 
 var foodCollection *mongo.Collection = database.OpenCollection(database.client, "food")
@@ -20,7 +19,7 @@ func main() {
 	router := gin.New()
 	router.Use(gin.Logger())
 	routes.UserRoutes(router)
-	routes.UserRoutes(middleware.Authentication())
+	routes.UserRoutes(middlewares.Authentication())
 
 	routes.FoodRoutes(router)
 	routes.MenuRoutes(router)
