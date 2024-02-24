@@ -23,8 +23,6 @@ func main() {
 	routes.OrderItemRoutes(router)
 	routes.InvoiceRoutes(router)
 	routes.TableRoutes(router)
-
 	router.Run(":" + port)
 
 }
- 
