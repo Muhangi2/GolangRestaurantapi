@@ -40,6 +40,7 @@ func GenerateAllTokens(email string, firstName string, lastName string, uid stri
 			ExpiresAt: jwt.NewNumericDate(time.Now().Local().Add(time.Hour * 24)), // Corrected usage of time.Now().Local() and jwt.NewNumericDate
 		},
 	}
+	 //refreshclaims
 	refreshClaims := &SignedDetails{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Local().Add(time.Hour * 24)),
