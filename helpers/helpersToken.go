@@ -2,9 +2,11 @@ package helpers
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -25,7 +27,17 @@ type SignedDetails struct {
 	jwt.RegisteredClaims
 }
 
-var SECRET_KEY = []byte(os.Getenv("SECRET_KEY"))
+// var SECRET_KEY = []byte(os.Getenv("SECRET_KEY"))
+var SECRET_KEY *ecdsa.PrivateKey
+
+func init() {
+	// Generate a new ECDSA private key
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		log.Fatal("Failed to generate ECDSA private key:", err)
+	}
+	SECRET_KEY = privateKey
+}
 
 var userCollection *mongo.Collection = database.OpenCollection(database.Client, "user")
 
@@ -40,7 +52,7 @@ func GenerateAllTokens(email string, firstName string, lastName string, uid stri
 			ExpiresAt: jwt.NewNumericDate(time.Now().Local().Add(time.Hour * 24)), // Corrected usage of time.Now().Local() and jwt.NewNumericDate
 		},
 	}
-	 //refreshclaims
+	//refreshclaims
 	refreshClaims := &SignedDetails{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Local().Add(time.Hour * 24)),

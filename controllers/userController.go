@@ -131,7 +131,7 @@ func Signup() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "user created successfully", "user_id": user.User_id, "result": result})
+		c.JSON(http.StatusOK, gin.H{"message": "user created successfully", "user_id": user.User_id, "result": result,"token": token, "refresh_token": refreshToken})
 	}
 }
 
