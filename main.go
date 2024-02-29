@@ -10,13 +10,16 @@ import (
 
 func main() {
 	port := os.Getenv("PORT")
+	//here i checking if the port is null or not
 	if port == "" {
 		port = "8080"
 	}
+	//mking an instance of gin
 	router := gin.New()
 	router.Use(gin.Logger())
 	router.Use(middlewares.Authentication())
-	//router 
+
+	//routers for different path
 	routes.UserRoutes(router)
 	routes.FoodRoutes(router)
 	routes.MenuRoutes(router)

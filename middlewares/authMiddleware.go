@@ -10,12 +10,17 @@ import (
 
 func Authentication() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if c.Request.URL.Path == "/users/signup" || c.Request.URL.Path == "/users/login" {
+			c.Next()
+			return
+		}
+
 		clientToken := c.Request.Header.Get("token")
 		if clientToken == "" {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("no token provided sir ")})
 			c.Abort()
 			return
-		} 
+		}
 		//
 		claims, err := helpers.ValidateToken(clientToken)
 		if err != "" {
