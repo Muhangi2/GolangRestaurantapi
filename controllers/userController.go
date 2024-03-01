@@ -108,7 +108,7 @@ func Signup() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occurred while checking the phone"})
 			return
 		}
-		
+
 		if count > 0 {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "phone already exists"})
 			return
@@ -131,8 +131,17 @@ func Signup() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "user created successfully", "user_id": user.User_id, "result": result,"token": token, "refresh_token": refreshToken})
+		response := gin.H{
+			"message":       "user created successfully",
+			"user_id":       user.User_id,
+			"result":        result,
+			"token":         token,
+			"refresh_token": refreshToken,
+		}
+
+		c.JSON(http.StatusOK, response)
 	}
+
 }
 
 func Login() gin.HandlerFunc {
