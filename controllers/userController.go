@@ -23,42 +23,54 @@ var userCollection *mongo.Collection = database.OpenCollection(database.Client, 
 func GetUsers() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
-		recordperpage, err := strconv.Atoi(c.Query("recordperpage"))
-		if err != nil || recordperpage < 1 {
-			recordperpage = 10
+		defer cancel()
+
+		recordPerPage, err := strconv.Atoi(c.Query("recordperpage"))
+		if err != nil || recordPerPage < 1 {
+			recordPerPage = 10
 		}
+
 		page, err := strconv.Atoi(c.Query("page"))
 		if err != nil || page < 1 {
 			page = 1
 		}
-		startIndex := (page - 1) * recordperpage
-		startIndex, err = strconv.Atoi(c.Query("startIndex"))
+
+		startIndex, err := strconv.Atoi(c.Query("startIndex"))
+		if err != nil || startIndex < 0 {
+			startIndex = (page - 1) * recordPerPage
+		}
 
 		matchStage := bson.D{{"$match", bson.D{{}}}}
 		projectStage := bson.D{{"$project", bson.D{
 			{"_id", 0},
 			{"total_count", 1},
 			{"user_items", bson.D{
-				{"$slice", []interface{}{"$data", startIndex, recordperpage}},
+				{"$slice", []interface{}{"$data", startIndex, recordPerPage}},
 			}},
 		}}}
 
 		result, err := userCollection.Aggregate(ctx, mongo.Pipeline{
 			matchStage, projectStage,
 		})
-		defer cancel()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occured while listing to user items"})
+			// Log the error for debugging
+			log.Println("Error occurred while aggregating user items:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "An error occurred while listing user items"})
+			return
 		}
+
 		var allUsers []bson.M
-		if err = result.All(ctx, &allUsers); err != nil {
-			log.Fatal(err)
+		if err := result.All(ctx, &allUsers); err != nil {
+			// Log the error for debugging
+			log.Println("Error occurred while decoding user items:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "An error occurred while listing user items"})
+			return
 		}
+
 		c.JSON(http.StatusOK, allUsers)
-
 	}
-
 }
+
 func GetUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
@@ -118,6 +130,10 @@ func Signup() gin.HandlerFunc {
 		user.Updated_at = user.Created_at
 		user.ID = primitive.NewObjectID()
 		user.User_id = user.ID.Hex()
+
+		//hashing password
+		hashedPassword := HashPassword(*user.Password)
+		user.Password = &hashedPassword
 
 		// Generate the token
 		token, refreshToken, _ := helpers.GenerateAllTokens(*user.Email, *user.FirstName, *user.SecondName, user.User_id)
@@ -191,13 +207,13 @@ func HashPassword(password string) string {
 }
 
 func VerifyPassword(userPassword string, providePassword string) (bool, string) {
-	err := bcrypt.CompareHashAndPassword([]byte(providePassword), []byte(userPassword))
+	err := bcrypt.CompareHashAndPassword([]byte(userPassword), []byte(providePassword))
 	check := true
 	msg := ""
 
 	if err != nil {
 		msg = fmt.Sprintf("password is incorrect")
-		check := false
+		check = false
 		return check, msg
 	}
 	return check, msg
