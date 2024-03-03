@@ -131,15 +131,20 @@ func Signup() gin.HandlerFunc {
 		user.ID = primitive.NewObjectID()
 		user.User_id = user.ID.Hex()
 
-		//hashing password
+		// Hash the password
 		hashedPassword := HashPassword(*user.Password)
 		user.Password = &hashedPassword
 
 		// Generate the token
-		token, refreshToken, _ := helpers.GenerateAllTokens(*user.Email, *user.FirstName, *user.SecondName, user.User_id)
+		token, refreshToken, err := helpers.GenerateAllTokens(*user.Email, *user.FirstName, *user.SecondName, user.User_id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "error generating tokens"})
+			return
+		}
 		user.Token = &token
 		user.Refresh_token = &refreshToken
 
+		// Insert user into database
 		result, resultError := userCollection.InsertOne(ctx, user)
 		if resultError != nil {
 			msg := fmt.Sprintf("user not created")
@@ -147,17 +152,18 @@ func Signup() gin.HandlerFunc {
 			return
 		}
 
+		//the response
 		response := gin.H{
-			"message":       "user created successfully",
-			"user_id":       user.User_id,
-			"result":        result,
-			"token":         token,
-			"refresh_token": refreshToken,
+			"message":         "user created successfully",
+			"user_id":         user.User_id,
+			"result":          result,
+			"token":           token,
+			"refresh_token":   refreshToken,
+			"hashed_password": hashedPassword,
 		}
 
 		c.JSON(http.StatusOK, response)
 	}
-
 }
 
 func Login() gin.HandlerFunc {
@@ -180,41 +186,42 @@ func Login() gin.HandlerFunc {
 		}
 
 		// Verify the password
-		passwordValid, msg := VerifyPassword(*user.Password, *foundUser.Password)
+		passwordValid := VerifyPassword(*user.Password, *foundUser.Password)
 		if !passwordValid {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "incorrect password"})
 			return
 		}
 
 		// Generate tokens
-		token, refreshToken, _ := helpers.GenerateAllTokens(*foundUser.Password, *foundUser.FirstName, *foundUser.SecondName, foundUser.User_id)
+		token, refreshToken, err := helpers.GenerateAllTokens(*foundUser.Password, *foundUser.FirstName, *foundUser.SecondName, foundUser.User_id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "error generating tokens"})
+			return
+		}
 
 		// Update tokens
 		helpers.UpdateAllTokens(token, refreshToken, foundUser.User_id)
 
-		// Response with user details
-		c.JSON(http.StatusOK, foundUser)
+		// Respond with user details (excluding sensitive fields)
+		response := gin.H{
+			"user_id":       foundUser.User_id,
+			"token":         token,
+			"refresh_token": refreshToken,
+		}
+
+		c.JSON(http.StatusOK, response)
 	}
 }
 
 func HashPassword(password string) string {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		log.Panic(err)
 	}
-	return string(bytes)
-
+	return string(hashedBytes)
 }
 
-func VerifyPassword(userPassword string, providePassword string) (bool, string) {
-	err := bcrypt.CompareHashAndPassword([]byte(userPassword), []byte(providePassword))
-	check := true
-	msg := ""
-
-	if err != nil {
-		msg = fmt.Sprintf("password is incorrect")
-		check = false
-		return check, msg
-	}
-	return check, msg
+func VerifyPassword(userPassword string, hashedPassword string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(userPassword))
+	return err == nil
 }
