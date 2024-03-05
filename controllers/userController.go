@@ -26,47 +26,93 @@ func GetUsers() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
 
-		recordPerPage, err := strconv.Atoi(c.Query("recordPerPage"))
-		if err != nil || recordPerPage < 1 {
-			recordPerPage = 10
+		// Parse query parameters for pagination
+		pageNum, err := strconv.Atoi(c.Query("page"))
+		if err != nil || pageNum < 1 {
+			pageNum = 1
 		}
-		fmt.Println("Record Per Page:", recordPerPage)
 
-		page, err := strconv.Atoi(c.Query("page"))
+		pageSize, err := strconv.Atoi(c.Query("pageSize"))
+		if err != nil || pageSize < 1 {
+			pageSize = 10 // default page size
+		}
+
+		// Calculate skip value for pagination
+		skip := (pageNum - 1) * pageSize
+
+		// Aggregation pipeline stages
+		pipeline := bson.A{
+			bson.M{"$skip": skip},
+			bson.M{"$limit": pageSize},
+		}
+
+		cursor, err := userCollection.Aggregate(ctx, pipeline)
 		if err != nil {
-			page = 1
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occurred while fetching users"})
+			return
 		}
-		fmt.Println("Page:", page)
+		defer cursor.Close(ctx)
 
-		startIndex := (page - 1) * recordPerPage
-		fmt.Println("Start Index:", startIndex)
-
-		matchStage := bson.D{{Key: "$match", Value: bson.D{{}}}}
-		projectStage := bson.D{
-			{Key: "$project", Value: bson.D{
-				{Key: "_id", Value: 0},
-				{Key: "total_count", Value: 1},
-				{Key: "user_items", Value: bson.D{{Key: "$slice", Value: bson.A{"$data", startIndex, recordPerPage}}}},
-			}},
-		}
-
-		result, err := userCollection.Aggregate(ctx, mongo.Pipeline{matchStage, projectStage})
-		if err != nil {
-			fmt.Println("Error occurred during aggregation:", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occurred while listing user items"})
+		var users []models.User
+		if err := cursor.All(ctx, &users); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occurred while decoding users"})
 			return
 		}
 
-		var allUsers []bson.M
-		if err := result.All(ctx, &allUsers); err != nil {
-			fmt.Println("Error occurred while decoding user items:", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occurred while listing user items"})
-			return
-		}
-
-		c.JSON(http.StatusOK, allUsers)
+		c.JSON(http.StatusOK, users)
 	}
 }
+
+// func GetUsers() gin.HandlerFunc {
+// 	return func(c *gin.Context) {
+// 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+// 		defer cancel()
+
+// 		recordPerPage, err := strconv.Atoi(c.Query("recordPerPage"))
+// 		if err != nil || recordPerPage < 1 {
+// 			recordPerPage = 10
+// 		}
+// 		fmt.Println("Record Per Page:", recordPerPage)
+
+// 		page, err := strconv.Atoi(c.Query("page"))
+// 		if err != nil {
+// 			page = 1
+// 		}
+// 		fmt.Println("Page:", page)
+
+// 		startIndex := (page - 1) * recordPerPage
+// 		fmt.Println("Start Index:", startIndex)
+
+// 		// Construct the aggregation pipeline
+// 		pipeline := mongo.Pipeline{
+// 			bson.D{{Key: "$match", Value: bson.M{}}},
+// 			bson.D{{"$project", bson.D{
+// 				{"_id", 0},
+// 				{"total_count", 1},
+// 				{"user_items", bson.D{{"$slice", bson.A{"$data", startIndex, recordPerPage}}}},
+// 			}}},
+// 		}
+
+// 		// Execute the aggregation pipeline
+// 		cursor, err := userCollection.Aggregate(ctx, pipeline)
+// 		if err != nil {
+// 			fmt.Println("Error occurred during aggregation:", err)
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occurred while listing user items"})
+// 			return
+// 		}
+// 		defer cursor.Close(ctx)
+
+// 		// Iterate over the cursor and collect the results
+// 		var allUsers []bson.M
+// 		if err := cursor.All(ctx, &allUsers); err != nil {
+// 			fmt.Println("Error occurred while decoding user items:", err)
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occurred while listing user items"})
+// 			return
+// 		}
+
+// 		c.JSON(http.StatusOK, allUsers)
+// 	}
+// }
 
 func GetUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
