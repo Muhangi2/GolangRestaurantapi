@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"golang-Restaurantbooking/database"
 	"golang-Restaurantbooking/helpers"
@@ -22,48 +23,44 @@ var userCollection *mongo.Collection = database.OpenCollection(database.Client, 
 
 func GetUsers() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
 
-		recordPerPage, err := strconv.Atoi(c.Query("recordperpage"))
+		recordPerPage, err := strconv.Atoi(c.Query("recordPerPage"))
 		if err != nil || recordPerPage < 1 {
 			recordPerPage = 10
 		}
+		fmt.Println("Record Per Page:", recordPerPage)
 
 		page, err := strconv.Atoi(c.Query("page"))
-		if err != nil || page < 1 {
+		if err != nil {
 			page = 1
 		}
+		fmt.Println("Page:", page)
 
-		startIndex, err := strconv.Atoi(c.Query("startIndex"))
-		if err != nil || startIndex < 0 {
-			startIndex = (page - 1) * recordPerPage
+		startIndex := (page - 1) * recordPerPage
+		fmt.Println("Start Index:", startIndex)
+
+		matchStage := bson.D{{Key: "$match", Value: bson.D{{}}}}
+		projectStage := bson.D{
+			{Key: "$project", Value: bson.D{
+				{Key: "_id", Value: 0},
+				{Key: "total_count", Value: 1},
+				{Key: "user_items", Value: bson.D{{Key: "$slice", Value: bson.A{"$data", startIndex, recordPerPage}}}},
+			}},
 		}
 
-		matchStage := bson.D{{"$match", bson.D{{}}}}
-		projectStage := bson.D{{"$project", bson.D{
-			{"_id", 0},
-			{"total_count", 1},
-			{"user_items", bson.D{
-				{"$slice", []interface{}{"$data", startIndex, recordPerPage}},
-			}},
-		}}}
-
-		result, err := userCollection.Aggregate(ctx, mongo.Pipeline{
-			matchStage, projectStage,
-		})
+		result, err := userCollection.Aggregate(ctx, mongo.Pipeline{matchStage, projectStage})
 		if err != nil {
-			// Log the error for debugging
-			log.Println("Error occurred while aggregating user items:", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "An error occurred while listing user items"})
+			fmt.Println("Error occurred during aggregation:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occurred while listing user items"})
 			return
 		}
 
 		var allUsers []bson.M
 		if err := result.All(ctx, &allUsers); err != nil {
-			// Log the error for debugging
-			log.Println("Error occurred while decoding user items:", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "An error occurred while listing user items"})
+			fmt.Println("Error occurred while decoding user items:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occurred while listing user items"})
 			return
 		}
 
@@ -73,15 +70,23 @@ func GetUsers() gin.HandlerFunc {
 
 func GetUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
-		userId := c.Param("User_id")
-		var user models.User
-		err := userCollection.FindOne(ctx, bson.M{"user_id": userId})
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
+
+		userId := c.Param("user_id")
+		fmt.Println(userId)
+		var user models.User
+		err := userCollection.FindOne(ctx, bson.M{"user_id": userId}).Decode(&user)
 		if err != nil {
-			c.JSON(500, gin.H{"error": "error occured while fetching the user"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occurred while fetching the user"})
+			return
 		}
-		c.JSON(200, user)
+		fmt.Println("User Information:")
+		fmt.Println("ID:", user.ID)
+
+		fmt.Println("Email:", user.Email)
+
+		c.JSON(http.StatusOK, user)
 	}
 }
 func Signup() gin.HandlerFunc {
@@ -186,9 +191,9 @@ func Login() gin.HandlerFunc {
 		}
 
 		// Verify the password
-		passwordValid := VerifyPassword(*user.Password, *foundUser.Password)
-		if !passwordValid {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "incorrect password"})
+		err = VerifyPassword(*user.Password, *foundUser.Password)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
@@ -221,7 +226,11 @@ func HashPassword(password string) string {
 	return string(hashedBytes)
 }
 
-func VerifyPassword(userPassword string, hashedPassword string) bool {
+func VerifyPassword(userPassword string, hashedPassword string) error {
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(userPassword))
-	return err == nil
+	if err != nil {
+		return errors.New("password is incoreect")
+	}
+	return nil
+
 }
