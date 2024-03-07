@@ -82,16 +82,19 @@ func GetFood() gin.HandlerFunc {
 func CreateFood() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout((context.Background()), 100*time.Second)
+
 		var food models.FoodItem
 		var menu models.Menu
 
 		if err := c.BindJSON(&food); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error})
+			defer cancel()
 			return
 		}
 		validateError := validate.Struct(food)
 		if validateError != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": validateError.Error()})
+			defer cancel()
 			return
 		}
 		//checking if the food exists
@@ -110,9 +113,9 @@ func CreateFood() gin.HandlerFunc {
 		var num = toFixed(*food.Price, 2)
 		food.Price = &num
 
+		msg := "Food item was not created"
 		result, issertErr := foodCollection.InsertOne(ctx, food)
 		if issertErr != nil {
-			msg := fmt.Sprintf("Food item was not created")
 			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
 			return
 		}

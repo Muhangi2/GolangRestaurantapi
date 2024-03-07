@@ -26,7 +26,7 @@ func GetUsers() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
 
-		// Parse query parameters for pagination
+		
 		pageNum, err := strconv.Atoi(c.Query("page"))
 		if err != nil || pageNum < 1 {
 			pageNum = 1

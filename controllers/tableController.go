@@ -58,6 +58,7 @@ func CreateTable() gin.HandlerFunc {
 		validateErr := validate.Struct(table)
 		if validateErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": validateErr.Error()})
+			defer cancel()
 			return
 		}
 		table.Created_at = time.Now()
@@ -66,15 +67,16 @@ func CreateTable() gin.HandlerFunc {
 		table.Table_id = table.ID.Hex()
 
 		result, issertErr := tableCollection.InsertOne(ctx, table)
+		defer cancel()
 		if issertErr != nil {
 			msg := fmt.Sprintf("table wasnt created")
 			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
 			return
 		}
-		defer cancel()
 		c.JSON(200, result)
 	}
 }
+
 func UpdateTable() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
