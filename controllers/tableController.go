@@ -80,16 +80,18 @@ func CreateTable() gin.HandlerFunc {
 func UpdateTable() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
-		var table models.Table
+		defer cancel() // Defer context cancellation to the end of the function
 
+		var table models.Table
 		if err := c.BindJSON(&table); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error})
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		tableId := c.Param("table_id")
-		filter := bson.M{"tableId": tableId}
 
-		var updateObj primitive.D
+		tableID := c.Param("table_id")
+		filter := bson.M{"table_id": tableID}
+
+		var updateObj bson.D
 		if table.Number_of_guests != nil {
 			updateObj = append(updateObj, bson.E{"number_of_guests", table.Number_of_guests})
 		}
@@ -97,35 +99,21 @@ func UpdateTable() gin.HandlerFunc {
 			updateObj = append(updateObj, bson.E{"table_number", table.Table_number})
 		}
 
-		table.Updated_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
-		upsert := true
+		table.Updated_at = time.Now()
 
-		opt := options.UpdateOptions{
-			Upsert: &upsert,
-		}
+		opt := options.Update().SetUpsert(true)
 		result, err := tableCollection.UpdateOne(
 			ctx,
 			filter,
-			bson.D{
-				{"$set", updateObj},
-			},
-			&opt,
+			bson.D{{"$set", updateObj}},
+			opt,
 		)
-		//check for the error
 		if err != nil {
-			msg := fmt.Sprintf("Menu was not updated")
+			msg := "Table was not updated"
 			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
-
 			return
-
 		}
-		defer cancel()
+
 		c.JSON(http.StatusOK, result)
-
-	}
-}
-func DeleteTable() gin.HandlerFunc {
-	return func(c *gin.Context) {
-
 	}
 }
